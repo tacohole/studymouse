@@ -1,0 +1,5 @@
+[console_scripts]
+anki = aqt:run
+
+[gui_scripts]
+ankiw = aqt:run

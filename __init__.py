@@ -1,20 +1,24 @@
+import os
+import sys
+
+dir_name = "lib"
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), dir_name))
+
 from aqt import mw
 from aqt.qt import *
-from studymouse import *
 from anki.collection import ImportCsvRequest
-
-import urllib.parse
-import os
+from anki import import_export_pb2
+from .knowt_importer import KnowtImporter
 
 __window = None
 
-class KnowtWindow():
+class KnowtWindow(QWidget):
     def __init__(self):
         super(KnowtWindow, self).__init__()
 
         self.results = None
         self.thread = None
-        self.config = None
+        self.config = mw.addonManager.getConfig(__name__)
 
         self.initGUI()
     
@@ -25,7 +29,7 @@ class KnowtWindow():
         # left side
         self.box_left = QVBoxLayout()
 
-        # quizlet url field
+        # knowt url field
         self.box_name = QHBoxLayout()
         self.label_url = QLabel("Knowt URL:")
         self.text_url = QLineEdit("", self)
@@ -39,7 +43,7 @@ class KnowtWindow():
 
         # deck name field
         self.box_deck = QHBoxLayout()
-        self.label_deck = QLabel("Knowt URL:")
+        self.label_deck = QLabel("Deck Name:")
         self.text_deck = QLineEdit("", self)
         self.text_deck.setMinimumWidth(300)
         self.text_deck.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
@@ -88,26 +92,21 @@ class KnowtWindow():
         self.show()
     
     def onCode(self):
-        url = self.text_url.text
-
-        if urllib.parse.urlparse(url).scheme:
-            urlDomain = urllib.parse.urlparse(url).netloc
-        else:
-            urlDomain = urllib.parse.urlparse("https://"+url).netloc
+        url = self.text_url.text()
 
         # validate knowt URL
         if url == "":
-            self.label_results.setText("Oops! You forgot the deck URL :(")
+            self.label_results.setText("Deck URL is required")
             return
-        elif not "knowt.com" in urlDomain:
-            self.label_results.setText("Oops! That's not a Knowt URL :(")
+        elif not "knowt.com" in url:
+            self.label_results.setText("knowt.com URL is required")
             return
-        
-        sm = Studymouse(url)
-        sm.get_knowt_data(url)
+
+        ki = KnowtImporter(url)
+        ki.get_knowt_data()
         col = mw.col
-        path = "./anki-import.txt"
-        metadata = col.get_csv_metadata(path=path, delimiter="|")
+        path = os.path.expanduser("~/anki-import.txt")
+        metadata = col.get_csv_metadata(path=path, delimiter=import_export_pb2.CsvMetadata.PIPE)
         request = ImportCsvRequest(path=path, metadata=metadata)
         response = col.import_csv(request)
         print(response.log.found_notes, list(response.log.updated), list(response.log.new))
