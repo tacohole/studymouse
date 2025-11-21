@@ -7,6 +7,8 @@ name = "pypi"
 requests = "*"
 selenium = "*"
 beautifulsoup4 = "*"
+aqt = "*"
+fake-useragent = "*"
 
 [dev-packages]
 
