@@ -105,8 +105,11 @@ class KnowtWindow(QWidget):
         ki = KnowtImporter(url)
         ki.get_knowt_data()
         col = mw.col
+        deck_name = self.text_deck.text() or "Knowt Import"
+        deck_id = col.decks.id(deck_name, create=True)
         path = os.path.expanduser("~/anki-import.txt")
         metadata = col.get_csv_metadata(path=path, delimiter=import_export_pb2.CsvMetadata.PIPE)
+        metadata.deck_id = int(deck_id)
         request = ImportCsvRequest(path=path, metadata=metadata)
         response = col.import_csv(request)
         print(response.log.found_notes, list(response.log.updated), list(response.log.new))
