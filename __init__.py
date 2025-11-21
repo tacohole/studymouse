@@ -113,6 +113,33 @@ class KnowtWindow(QWidget):
         request = ImportCsvRequest(path=path, metadata=metadata)
         response = col.import_csv(request)
         print(response.log.found_notes, list(response.log.updated), list(response.log.new))
+
+        try:
+            # defensively extract integer note ids from protobuf response objects
+            new_note_ids = []
+            for n in response.log.new:
+                nid_obj = getattr(n, "id", None)
+                if nid_obj is None:
+                    continue
+                # NoteId protobuf exposes the integer in .nid; fall back to int() if needed
+                nid_val = getattr(nid_obj, "nid", None)
+                if nid_val is None:
+                    try:
+                        nid_val = int(nid_obj)
+                    except Exception:
+                        continue
+                new_note_ids.append(int(nid_val))
+
+            if new_note_ids:
+                card_ids = []
+                for nid in new_note_ids:
+                    card_ids.extend([int(cid) for cid in col.card_ids_of_note(nid)])
+                if card_ids:
+                    col.set_deck(card_ids, int(deck_id))
+                    self.label_results.setText(f"Imported {len(new_note_ids)} notes to deck '{deck_name}'")
+        except Exception as e:
+            self.label_results.setText(f"Import completed, but moving cards failed: {e}")
+
         os.remove(path)
 
 def runKnowtPlugin():
