@@ -9,6 +9,8 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.wait import WebDriverWait
 from bs4 import BeautifulSoup
+import re
+import json
 from types import SimpleNamespace
 
 class KnowtImporter():
@@ -57,14 +59,86 @@ class KnowtImporter():
             # Pair ProseMirror children as non-overlapping sequential pairs
             # (0,1), (2,3), ... rather than a sliding window which yields
             # overlapping/mangled pairs for many real-world Knowt pages.
-            texts = [self.clean(p.get_text()) for p in pm_children]
+            # preserve separators between inline text nodes so words don't get
+            # concatenated when multiple inline elements are present.
+            texts = [self.clean(p.get_text(" ")) for p in pm_children]
             for i in range(0, len(texts), 2):
                 if i + 1 >= len(texts):
                     break
                 q = texts[i]
                 a = texts[i + 1]
-                if q and a:
-                    key = (q, a)
+                if not q or not a:
+                    continue
+
+                # Collapse spaces between single-character tokens (e.g. "Q 1"
+                # -> "Q1") which can occur when inline elements split a
+                # token into multiple text nodes. This preserves normal
+                # multi-word questions but normalizes tiny token splits so
+                # duplicates like ("Q 1","A1") and ("Q1","A1") are
+                # considered the same.
+                def collapse_short_tokens(s):
+                    parts = s.split()
+                    if len(parts) > 1 and all(len(p) == 1 for p in parts):
+                        return ''.join(parts)
+                    return s
+
+                q_display = collapse_short_tokens(q)
+                a_display = collapse_short_tokens(a)
+
+                key = (q_display, a_display)
+                if key not in seen:
+                    seen.add(key)
+                    cards.append(key)
+
+        
+    # NOTE: keep function-local return above for the common path. The
+        # following fallback attempts to find any flashcards embedded as JSON
+        # inside the page (some Knowt exports include a JSON blob with
+        # "term"/"definition" fields). We only run this fallback after the
+        # main pass to avoid duplicating entries; entries are deduped via
+        # `seen` above.
+        # Try to find embedded JSON inside script tags or elsewhere in the
+        # raw page text. Check script tag contents first (they often contain
+        # the raw JSON with escaped HTML sequences), then fall back to the
+        # full soup string.
+        sources = []
+        for script in soup.find_all('script'):
+            if script.string:
+                sources.append(script.string)
+            else:
+                try:
+                    sources.append(''.join(script.contents))
+                except Exception:
+                    continue
+
+        sources.append(str(soup))
+
+        # match occurrences like "term":"...","definition":"..." (JSON
+        # string contents are matched non-greedily). Use DOTALL to allow
+        # multiline definitions.
+        pattern = re.compile(r'"term"\s*:\s*"(?P<term>.*?)"\s*,\s*"definition"\s*:\s*"(?P<definition>.*?)"', re.DOTALL)
+        for src in sources:
+            # Many Knowt exports embed JSON inside JavaScript strings which
+            # escape quotes (e.g. \"term\":...). Normalize those
+            # sequences so the regex can match either escaped or unescaped
+            # forms.
+            src_proc = src.replace('\\"', '"')
+            for m in pattern.finditer(src_proc):
+                try:
+                    term_json = '"' + m.group('term') + '"'
+                    def_json = '"' + m.group('definition') + '"'
+                    term_unescaped = json.loads(term_json)
+                    def_unescaped = json.loads(def_json)
+                except Exception:
+                    # if anything goes wrong decoding the JSON-ish string, skip it
+                    continue
+
+                # term_unescaped and def_unescaped may contain HTML fragments
+                # (e.g. "\u003cp\u003e...") — parse and extract visible text
+                term_text = self.clean(BeautifulSoup(term_unescaped, 'html.parser').get_text(" "))
+                def_text = self.clean(BeautifulSoup(def_unescaped, 'html.parser').get_text(" "))
+                if term_text and def_text:
+                    key = (term_text, def_text)
                     if key not in seen:
                         seen.add(key)
                         cards.append(key)

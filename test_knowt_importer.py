@@ -161,7 +161,7 @@ class TestKnowtImporter(unittest.TestCase):
             pm_children = importer.find_prose_mirrors(container)
             if len(pm_children) < 2:
                 continue
-            texts = [importer.clean(p.get_text()) for p in pm_children]
+            texts = [importer.clean(p.get_text(" ")) for p in pm_children]
             for i in range(0, len(texts), 2):
                 if i + 1 >= len(texts):
                     break
@@ -175,12 +175,15 @@ class TestKnowtImporter(unittest.TestCase):
                 seen.add(key)
                 non_overlap.append(key)
 
-        # They should match; if they don't, the importer is producing
-        # overlapping (mangled) pairs on this real-world sample.
+        # The importer may include extra flashcards discovered via embedded
+        # JSON (fallback). Ensure the ProseMirror-derived non-overlapping
+        # pairs match the start of the importer's output (fallback items,
+        # if any, are appended afterwards). This verifies we do not produce
+        # overlapping pairs from the ProseMirror scan.
         self.assertEqual(
-            sliding_cards,
+            sliding_cards[: len(non_overlap)],
             non_overlap,
-            f"Importer produced overlapping pairs: {len(sliding_cards)} vs expected {len(non_overlap)}",
+            f"Importer produced overlapping pairs in the ProseMirror scan: {len(sliding_cards)} vs expected {len(non_overlap)}",
         )
 
 
