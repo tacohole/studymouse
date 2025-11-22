@@ -6,9 +6,8 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), dir_nam
 
 from aqt import mw
 from aqt.qt import *
-from anki.collection import ImportCsvRequest
-from anki import import_export_pb2
 from .knowt_importer import KnowtImporter
+from .deck_utils import get_or_create_deck, import_csv_and_assign
 
 __window = None
 
@@ -53,39 +52,31 @@ class KnowtWindow(QWidget):
         self.box_deck.addWidget(self.label_deck)
         self.box_deck.addWidget(self.text_deck)
 
-        # add layouts to left
         self.box_left.addLayout(self.box_name)
         self.box_left.addLayout(self.box_deck)
 
-        # right side
         self.box_right = QVBoxLayout()
 
-        # code (import set) button
         self.box_code = QVBoxLayout()
         self.button_code = QPushButton("Import Deck", self)
         self.box_code.addWidget(self.button_code)
         self.button_code.clicked.connect(self.onCode)
 
-        # add layouts to right
         self.box_right.addLayout(self.box_code)
         self.box_right.addStretch()
 
-        # add left and right layouts to upper
         self.box_upper.addLayout(self.box_left)
         self.box_upper.addSpacing(20)
         self.box_upper.addLayout(self.box_right)
 
-        # results label
         self.label_results = QLabel(
             "\r\n<i>Example: https://knowt.com/flashcards/3382f43b-f4ce-4dc1-9439-96fa42ff549f</i>")
 
-        # add all widgets to top layout
         self.box_top.addLayout(self.box_upper)
         self.box_top.addWidget(self.label_results)
         self.box_top.addStretch(1)
         self.setLayout(self.box_top)
 
-        # go, baby go!
         self.setMinimumWidth(600)
         self.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
         self.setWindowTitle("Knowt to Anki Importer")
@@ -98,7 +89,7 @@ class KnowtWindow(QWidget):
         if url == "":
             self.label_results.setText("Deck URL is required")
             return
-        elif not "knowt.com" in url:
+        elif "knowt.com" not in url:
             self.label_results.setText("knowt.com URL is required")
             return
 
@@ -106,41 +97,22 @@ class KnowtWindow(QWidget):
         ki.get_knowt_data()
         col = mw.col
         deck_name = self.text_deck.text() or "Knowt Import"
-        deck_id = col.decks.id(deck_name, create=True)
+        deck_id = get_or_create_deck(col, deck_name)
+
         path = os.path.expanduser("~/anki-import.txt")
-        metadata = col.get_csv_metadata(path=path, delimiter=import_export_pb2.CsvMetadata.PIPE)
-        metadata.deck_id = int(deck_id)
-        request = ImportCsvRequest(path=path, metadata=metadata)
-        response = col.import_csv(request)
-        print(response.log.found_notes, list(response.log.updated), list(response.log.new))
-
         try:
-            # defensively extract integer note ids from protobuf response objects
-            new_note_ids = []
-            for n in response.log.new:
-                nid_obj = getattr(n, "id", None)
-                if nid_obj is None:
-                    continue
-                # NoteId protobuf exposes the integer in .nid; fall back to int() if needed
-                nid_val = getattr(nid_obj, "nid", None)
-                if nid_val is None:
-                    try:
-                        nid_val = int(nid_obj)
-                    except Exception:
-                        continue
-                new_note_ids.append(int(nid_val))
-
-            if new_note_ids:
-                card_ids = []
-                for nid in new_note_ids:
-                    card_ids.extend([int(cid) for cid in col.card_ids_of_note(nid)])
-                if card_ids:
-                    col.set_deck(card_ids, int(deck_id))
-                    self.label_results.setText(f"Imported {len(new_note_ids)} notes to deck '{deck_name}'")
+            result = import_csv_and_assign(col, path, deck_id)
+            # print a short summary similar to before
+            print(result.get("found_notes"), result.get("updated"), result.get("new_note_ids"))
+            new_notes = len(result.get("new_note_ids", []))
+            if new_notes:
+                self.label_results.setText(f"Imported {new_notes} notes to deck '{deck_name}'")
+            else:
+                self.label_results.setText(f"Imported {result.get('found_notes')} notes (no new notes moved)")
         except Exception as e:
             self.label_results.setText(f"Import completed, but moving cards failed: {e}")
-
-        os.remove(path)
+        # close popup
+        self.close()
 
 def runKnowtPlugin():
     global __window
