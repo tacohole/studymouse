@@ -6,10 +6,8 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), dir_nam
 
 from aqt import mw
 from aqt.qt import *
-from anki.collection import ImportCsvRequest
-from anki import import_export_pb2
 from .knowt_importer import KnowtImporter
-from .deck_utils import get_or_create_deck
+from .deck_utils import get_or_create_deck, import_csv_and_assign
 
 __window = None
 
@@ -102,39 +100,17 @@ class KnowtWindow(QWidget):
         deck_id = get_or_create_deck(col, deck_name)
 
         path = os.path.expanduser("~/anki-import.txt")
-        metadata = col.get_csv_metadata(path=path, delimiter=import_export_pb2.CsvMetadata.PIPE)
-        metadata.deck_id = int(deck_id)
-        request = ImportCsvRequest(path=path, metadata=metadata)
-        response = col.import_csv(request)
-        print(response.log.found_notes, list(response.log.updated), list(response.log.new))
-
         try:
-            # defensively extract integer note ids from protobuf response objects
-            new_note_ids = []
-            for n in response.log.new:
-                nid_obj = getattr(n, "id", None)
-                if nid_obj is None:
-                    continue
-                # NoteId protobuf exposes the integer in .nid; fall back to int() if needed
-                nid_val = getattr(nid_obj, "nid", None)
-                if nid_val is None:
-                    try:
-                        nid_val = int(nid_obj)
-                    except Exception:
-                        continue
-                new_note_ids.append(int(nid_val))
-
-            if new_note_ids:
-                card_ids = []
-                for nid in new_note_ids:
-                    card_ids.extend([int(cid) for cid in col.card_ids_of_note(nid)])
-                if card_ids:
-                    col.set_deck(card_ids, int(deck_id))
-                    self.label_results.setText(f"Imported {len(new_note_ids)} notes to deck '{deck_name}'")
+            result = import_csv_and_assign(col, path, deck_id)
+            # print a short summary similar to before
+            print(result.get("found_notes"), result.get("updated"), result.get("new_note_ids"))
+            new_notes = len(result.get("new_note_ids", []))
+            if new_notes:
+                self.label_results.setText(f"Imported {new_notes} notes to deck '{deck_name}'")
+            else:
+                self.label_results.setText(f"Imported {result.get('found_notes')} notes (no new notes moved)")
         except Exception as e:
             self.label_results.setText(f"Import completed, but moving cards failed: {e}")
-
-        os.remove(path)
         # close popup
         self.close()
 
