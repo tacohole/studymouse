@@ -34,7 +34,10 @@ class KnowtImporter():
   def clean(t):
       return " ".join(t.split())
   
-  def find_prose_mirrors(soup):
+  def clean(self, t):
+      return " ".join(t.split())
+  
+  def find_prose_mirrors(self, soup):
       return [d for d in soup.find_all("div") if d.get("class") and any("ProseMirror" in c for c in d.get("class"))]
   
   def get_knowt_data(self):
@@ -81,7 +84,7 @@ class KnowtImporter():
     # write out results to ~/anki-import.txt
     out = os.path.expanduser("~/anki-import.txt")
     with open(out, "w", encoding="utf-8") as f:
-        for item in cards:
+        for item in elems:
             f.write(f"{item.text}\n")
 
     driver.quit()
