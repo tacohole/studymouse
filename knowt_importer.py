@@ -53,9 +53,16 @@ class KnowtImporter():
             pm_children = self.find_prose_mirrors(container)
             if len(pm_children) < 2:
                 continue
-            for i in range(len(pm_children) - 1):
-                q = self.clean(pm_children[i].get_text())
-                a = self.clean(pm_children[i + 1].get_text())
+
+            # Pair ProseMirror children as non-overlapping sequential pairs
+            # (0,1), (2,3), ... rather than a sliding window which yields
+            # overlapping/mangled pairs for many real-world Knowt pages.
+            texts = [self.clean(p.get_text()) for p in pm_children]
+            for i in range(0, len(texts), 2):
+                if i + 1 >= len(texts):
+                    break
+                q = texts[i]
+                a = texts[i + 1]
                 if q and a:
                     key = (q, a)
                     if key not in seen:
