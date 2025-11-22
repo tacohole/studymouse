@@ -117,7 +117,7 @@ class TestKnowtImporter(unittest.TestCase):
 
     def test_sample_file_html_parsing(self):
         # Parse the actual sample HTML file and check for 102 pairs
-        with open("sample", "r", encoding="utf-8") as f:
+        with open("./example/sample", "r", encoding="utf-8") as f:
             html = f.read()
         soup = BeautifulSoup(html, "html.parser")
         importer = KnowtImporter("https://knowt.com/flashcards/sample")
@@ -145,7 +145,7 @@ class TestKnowtImporter(unittest.TestCase):
         # non-overlapping pairing algorithm applied to the same sample HTML.
         # If the importer uses a sliding window (overlapping pairs) this
         # test will fail and reproduce the mangled-pairs issue.
-        with open("sample", "r", encoding="utf-8") as f:
+        with open("./example/sample", "r", encoding="utf-8") as f:
             html = f.read()
         soup = BeautifulSoup(html, "html.parser")
         importer = KnowtImporter("https://knowt.com/flashcards/sample")
