@@ -31,6 +31,12 @@ class KnowtImporter():
       # set referer
       request.headers["referer"] = self.REFERER
 
+  def clean(t):
+      return " ".join(t.split())
+  
+  def find_prose_mirrors(soup):
+      return [d for d in soup.find_all("div") if d.get("class") and any("ProseMirror" in c for c in d.get("class"))]
+  
   def get_knowt_data(self):
     chrome_opts = Options()
     chrome_opts.add_argument("--headless=new")
@@ -40,23 +46,15 @@ class KnowtImporter():
     # start with URL like "https://knowt.com/flashcards/5052de2d-1a7d-4da2-8fd7-e3a73a8e1f01"
     driver.get(self.url)
 
-    # wait for initial load (short) and let client-side JS settle a bit
     WebDriverWait(driver, 8).until(lambda d: d.execute_script("return document.readyState") == "complete")
  
-    
-    # capture the rendered HTML and parse it
     html = driver.page_source
     soup = BeautifulSoup(html, "html.parser")
-
-    # build front/back pairs from ProseMirror divs
-    def clean(t):
-        return " ".join(t.split())
 
     cards = []
     seen = set()
 
-    # find all divs that contain "ProseMirror" in their class list (document order)
-    pm_divs = [d for d in soup.find_all("div") if d.get("class") and any("ProseMirror" in c for c in d.get("class"))]
+    pm_divs = self.find_prose_mirrors(soup)
 
     for pm in pm_divs:
         # climb ancestors to find a grouping container that contains >= 2 ProseMirror nodes
@@ -65,12 +63,12 @@ class KnowtImporter():
             container = container.parent
             if container is None:
                 break
-            pm_children = [d for d in container.find_all("div") if d.get("class") and any("ProseMirror" in c for c in d.get("class"))]
+            pm_children = self.find_prose_mirrors(container)
             if len(pm_children) >= 2:
                 # pair adjacent ProseMirror children as front/back
                 for i in range(len(pm_children) - 1):
-                    q = clean(pm_children[i].get_text())
-                    a = clean(pm_children[i + 1].get_text())
+                    q = self.clean(pm_children[i].get_text())
+                    a = self.clean(pm_children[i + 1].get_text())
                     if q and a:
                         key = (q, a)
                         if key not in seen:
@@ -78,16 +76,12 @@ class KnowtImporter():
                             cards.append((q, a))
                 break
 
-    # produce `elems` for downstream code (line ~94 expects to iterate elems and use .text)
     elems = [SimpleNamespace(text=f"{q}|{a}") for q, a in cards]
 
     # write out results to ~/anki-import.txt
     out = os.path.expanduser("~/anki-import.txt")
     with open(out, "w", encoding="utf-8") as f:
-        for item in elems:
+        for item in cards:
             f.write(f"{item.text}\n")
-
-    # leave driver open and let downstream code (starting at line ~94) consume `elems`
-    # ...following code will run using `elems`...
 
     driver.quit()

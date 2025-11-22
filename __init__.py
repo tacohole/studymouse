@@ -53,39 +53,31 @@ class KnowtWindow(QWidget):
         self.box_deck.addWidget(self.label_deck)
         self.box_deck.addWidget(self.text_deck)
 
-        # add layouts to left
         self.box_left.addLayout(self.box_name)
         self.box_left.addLayout(self.box_deck)
 
-        # right side
         self.box_right = QVBoxLayout()
 
-        # code (import set) button
         self.box_code = QVBoxLayout()
         self.button_code = QPushButton("Import Deck", self)
         self.box_code.addWidget(self.button_code)
         self.button_code.clicked.connect(self.onCode)
 
-        # add layouts to right
         self.box_right.addLayout(self.box_code)
         self.box_right.addStretch()
 
-        # add left and right layouts to upper
         self.box_upper.addLayout(self.box_left)
         self.box_upper.addSpacing(20)
         self.box_upper.addLayout(self.box_right)
 
-        # results label
         self.label_results = QLabel(
             "\r\n<i>Example: https://knowt.com/flashcards/3382f43b-f4ce-4dc1-9439-96fa42ff549f</i>")
 
-        # add all widgets to top layout
         self.box_top.addLayout(self.box_upper)
         self.box_top.addWidget(self.label_results)
         self.box_top.addStretch(1)
         self.setLayout(self.box_top)
 
-        # go, baby go!
         self.setMinimumWidth(600)
         self.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
         self.setWindowTitle("Knowt to Anki Importer")
@@ -141,6 +133,8 @@ class KnowtWindow(QWidget):
             self.label_results.setText(f"Import completed, but moving cards failed: {e}")
 
         os.remove(path)
+        # close popup
+        self.close()
 
 def runKnowtPlugin():
     global __window
