@@ -33,7 +33,6 @@ class KnowtImporter():
 
   @staticmethod
   def clean(t):
-      """Normalize whitespace in a string."""
       return " ".join(t.split())
   
   def find_prose_mirrors(self, soup):
