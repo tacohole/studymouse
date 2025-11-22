@@ -12,6 +12,21 @@ from .knowt_importer import KnowtImporter
 
 __window = None
 
+
+def get_or_create_deck(col, deck_name):
+    """Return an integer deck id for the given deck_name, creating the deck
+    if it does not exist. Extracted to make deck creation modular and
+    easier to unit-test."""
+    deck_id = col.decks.id(deck_name, create=True)
+    try:
+        return int(deck_id)
+    except Exception:
+        # be defensive: some Anki APIs expose objects; try to coerce
+        try:
+            return int(getattr(deck_id, "id", deck_id))
+        except Exception:
+            return int(deck_id)
+
 class KnowtWindow(QWidget):
     def __init__(self):
         super(KnowtWindow, self).__init__()
@@ -90,7 +105,7 @@ class KnowtWindow(QWidget):
         if url == "":
             self.label_results.setText("Deck URL is required")
             return
-        elif not "knowt.com" in url:
+        elif "knowt.com" not in url:
             self.label_results.setText("knowt.com URL is required")
             return
 
@@ -98,7 +113,8 @@ class KnowtWindow(QWidget):
         ki.get_knowt_data()
         col = mw.col
         deck_name = self.text_deck.text() or "Knowt Import"
-        deck_id = col.decks.id(deck_name, create=True)
+        deck_id = get_or_create_deck(col, deck_name)
+
         path = os.path.expanduser("~/anki-import.txt")
         metadata = col.get_csv_metadata(path=path, delimiter=import_export_pb2.CsvMetadata.PIPE)
         metadata.deck_id = int(deck_id)

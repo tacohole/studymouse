@@ -40,10 +40,36 @@ class TestKnowtImporter(unittest.TestCase):
       <div class="ProseMirror AnotherClass">Content 2</div>
       '''
       soup = BeautifulSoup(html, "html.parser")
-      pm_divs = KnowtImporter.find_prose_mirrors(soup)
+      pm_divs = KnowtImporter.find_prose_mirrors(self, soup)
       self.assertEqual(len(pm_divs), 2, f"expected 2 ProseMirror divs but got {len(pm_divs)}")
       self.assertEqual(pm_divs[0].get_text(), "Content 1", f"expected 'Content 1' but got '{pm_divs[0].get_text()}'")
       self.assertEqual(pm_divs[1].get_text(), "Content 2", f"expected 'Content 2' but got '{pm_divs[1].get_text()}'")
+
+  def test_extract_multiple_cards(self):
+      # Build an HTML document with multiple container divs, each containing
+      # adjacent ProseMirror nodes representing Q/A pairs. The extractor
+      # should find all pairs.
+      html = '''
+      <div class="card-group">
+          <div class="ProseMirror">Q1</div>
+          <div class="ProseMirror">A1</div>
+      </div>
+      <div class="card-group">
+          <div class="ProseMirror">Q2</div>
+          <div class="ProseMirror">A2</div>
+      </div>
+      <div class="nested">
+          <div>
+              <div class="ProseMirror">Q3</div>
+              <div class="ProseMirror">A3</div>
+          </div>
+      </div>
+      '''
+      soup = BeautifulSoup(html, "html.parser")
+      importer = KnowtImporter("https://knowt.com/flashcards/sample")
+      cards = importer.extract_cards_from_soup(soup)
+      expected = [("Q1", "A1"), ("Q2", "A2"), ("Q3", "A3")]
+      self.assertEqual(cards, expected, f"expected {expected} but got {cards}")
 
 if __name__ == '__main__':
     unittest.main()

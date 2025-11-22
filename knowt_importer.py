@@ -31,14 +31,39 @@ class KnowtImporter():
       # set referer
       request.headers["referer"] = self.REFERER
 
+  @staticmethod
   def clean(t):
-      return " ".join(t.split())
-  
-  def clean(self, t):
+      """Normalize whitespace in a string."""
       return " ".join(t.split())
   
   def find_prose_mirrors(self, soup):
       return [d for d in soup.find_all("div") if d.get("class") and any("ProseMirror" in c for c in d.get("class"))]
+  
+  def extract_cards_from_soup(self, soup):
+        """Return a list of (question, answer) tuples found in the BeautifulSoup
+        document. We scan all container divs and pair adjacent ProseMirror
+        descendants inside each container. Results are deduplicated while
+        preserving order."""
+        cards = []
+        seen = set()
+
+        # Iterate over all div containers; many Knowt pages group flashcard
+        # ProseMirror nodes in specific container divs. Scanning all divs is
+        # more complete than starting from individual ProseMirror nodes.
+        for container in soup.find_all("div"):
+            pm_children = self.find_prose_mirrors(container)
+            if len(pm_children) < 2:
+                continue
+            for i in range(len(pm_children) - 1):
+                q = self.clean(pm_children[i].get_text())
+                a = self.clean(pm_children[i + 1].get_text())
+                if q and a:
+                    key = (q, a)
+                    if key not in seen:
+                        seen.add(key)
+                        cards.append(key)
+
+        return cards
   
   def get_knowt_data(self):
     chrome_opts = Options()
@@ -54,30 +79,10 @@ class KnowtImporter():
     html = driver.page_source
     soup = BeautifulSoup(html, "html.parser")
 
-    cards = []
-    seen = set()
-
-    pm_divs = self.find_prose_mirrors(soup)
-
-    for pm in pm_divs:
-        # climb ancestors to find a grouping container that contains >= 2 ProseMirror nodes
-        container = pm
-        for _ in range(6):
-            container = container.parent
-            if container is None:
-                break
-            pm_children = self.find_prose_mirrors(container)
-            if len(pm_children) >= 2:
-                # pair adjacent ProseMirror children as front/back
-                for i in range(len(pm_children) - 1):
-                    q = self.clean(pm_children[i].get_text())
-                    a = self.clean(pm_children[i + 1].get_text())
-                    if q and a:
-                        key = (q, a)
-                        if key not in seen:
-                            seen.add(key)
-                            cards.append((q, a))
-                break
+    # Extract cards from soup using a dedicated method. This is more robust
+    # than climbing ancestors from each ProseMirror node and prevents missing
+    # groups by scanning all container divs for >=2 ProseMirror children.
+    cards = self.extract_cards_from_soup(soup)
 
     elems = [SimpleNamespace(text=f"{q}|{a}") for q, a in cards]
 
