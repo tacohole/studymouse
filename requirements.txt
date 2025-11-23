@@ -1,5 +1,6 @@
+anki
+aqt
+beautifulsoup4
+fake_useragent
 requests
 selenium
-beautifulsoup4
-aqt
-fake_useragent

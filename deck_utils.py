@@ -1,7 +1,12 @@
+import os
+from anki.collection import ImportCsvRequest
+
+# delimiter for CSV import
+PIPE = 1
+
 def get_or_create_deck(col, deck_name):
     """Return an integer deck id for the given deck_name, creating the deck
-    if it does not exist. Kept side-effect free so it can be imported and
-    unit-tested without pulling in Anki GUI runtime."""
+    if it does not exist."""
     deck_id = col.decks.id(deck_name, create=True)
     try:
         return int(deck_id)
@@ -23,26 +28,7 @@ def import_csv_and_assign(col, path, deck_id):
       - new_note_ids: list of new note ids (ints)
       - moved_cards: number of card ids moved to deck
     """
-    import os
-    try:
-        from anki.collection import ImportCsvRequest
-        from anki import import_export_pb2
-    except Exception:
-        # Running in test environment without `anki` package; provide
-        # lightweight stubs so the helper remains testable.
-        class ImportCsvRequest:
-            def __init__(self, path, metadata):
-                self.path = path
-                self.metadata = metadata
-
-        class import_export_pb2:
-            class CsvMetadata:
-                PIPE = 1
-
-                def __init__(self):
-                    self.deck_id = None
-
-    metadata = col.get_csv_metadata(path=path, delimiter=import_export_pb2.CsvMetadata.PIPE)
+    metadata = col.get_csv_metadata(path=path, delimiter=PIPE)
     metadata.deck_id = int(deck_id)
     request = ImportCsvRequest(path=path, metadata=metadata)
     response = col.import_csv(request)

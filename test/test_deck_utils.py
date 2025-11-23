@@ -2,6 +2,7 @@ import os
 import tempfile
 import unittest
 from types import SimpleNamespace
+from anki import import_export_pb2
 from deck_utils import *
 
 
@@ -12,14 +13,9 @@ class MockCol:
         self._set_deck_called = False
         self._set_deck_args = None
 
-    def get_csv_metadata(self, path, delimiter):
-        # return a real CsvMetadata object if available so ImportCsvRequest
-        # accepts it; fall back to a SimpleNamespace if import fails.
-        try:
-            from anki import import_export_pb2
-            return import_export_pb2.CsvMetadata()
-        except Exception:
-            return SimpleNamespace(deck_id=None)
+    def get_csv_metadata(self, path, delimiter):  
+        return import_export_pb2.CsvMetadata()
+      
 
     def import_csv(self, request):
         return self._response
@@ -105,8 +101,6 @@ class TestImportCsvAndAssign(unittest.TestCase):
                 pass
 
     def test_import_csv_and_assign_no_new_notes(self):
-        from deck_utils import import_csv_and_assign
-
         log = SimpleNamespace(found_notes=0, updated=[], new=[])
         response = SimpleNamespace(log=log)
 
