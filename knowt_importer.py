@@ -22,15 +22,11 @@ class KnowtImporter():
   REFERER = 'https://google.com'
 
   def request_interceptor(self, request):
-      # delete previous UA
       del request.headers["user-agent"]
-      # set new custom UA
-      request.headers["user-agent"] = self.ua.random
-      # delete previous Sec-CH-UA
       del request.headers["sec-ch-ua"]
-      # set Sec-CH-UA
+
+      request.headers["user-agent"] = self.ua.random
       request.headers["sec-ch-ua"] = self.SEC_CH_UA
-      # set referer
       request.headers["referer"] = self.REFERER
 
   @staticmethod
@@ -61,7 +57,24 @@ class KnowtImporter():
             # overlapping/mangled pairs for many real-world Knowt pages.
             # preserve separators between inline text nodes so words don't get
             # concatenated when multiple inline elements are present.
-            texts = [self.clean(p.get_text(" ")) for p in pm_children]
+            # For each ProseMirror child keep visible text as before, but
+            # preserve inline <img> tags by using inner HTML when images
+            # are present. This allows image-capturing workflows (Anki
+            # supports <img src="..."> in fields) while keeping existing
+            # text-only behavior for backwards compatibility.
+            def pm_content(p):
+                # if the node contains image tags, return its inner HTML so
+                # the <img> markup is preserved; otherwise return the
+                # cleaned visible text (same as previous behaviour).
+                if p.find('img'):
+                    # decode_contents returns the inner HTML as a string
+                    html = p.decode_contents()
+                    # Normalize excessive whitespace between tags/text
+                    html = re.sub(r"\s+", " ", html).strip()
+                    return html
+                return self.clean(p.get_text(" "))
+
+            texts = [pm_content(p) for p in pm_children]
             for i in range(0, len(texts), 2):
                 if i + 1 >= len(texts):
                     break
@@ -134,9 +147,21 @@ class KnowtImporter():
                     continue
 
                 # term_unescaped and def_unescaped may contain HTML fragments
-                # (e.g. "\u003cp\u003e...") — parse and extract visible text
-                term_text = self.clean(BeautifulSoup(term_unescaped, 'html.parser').get_text(" "))
-                def_text = self.clean(BeautifulSoup(def_unescaped, 'html.parser').get_text(" "))
+                # (e.g. "\u003cp\u003e...") — parse and extract visible
+                # text, but preserve <img> markup if present so image-only
+                # flashcards are not lost by the text-only extractor.
+                bs_term = BeautifulSoup(term_unescaped, 'html.parser')
+                bs_def = BeautifulSoup(def_unescaped, 'html.parser')
+
+                if bs_term.find('img'):
+                    term_text = re.sub(r"\s+", " ", bs_term.decode_contents()).strip()
+                else:
+                    term_text = self.clean(bs_term.get_text(" "))
+
+                if bs_def.find('img'):
+                    def_text = re.sub(r"\s+", " ", bs_def.decode_contents()).strip()
+                else:
+                    def_text = self.clean(bs_def.get_text(" "))
                 if term_text and def_text:
                     key = (term_text, def_text)
                     if key not in seen:
