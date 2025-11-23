@@ -175,8 +175,6 @@ class KnowtImporter():
     chrome_opts.add_argument("--headless=new")
     driver = webdriver.Chrome(options=chrome_opts)
     driver.request_interceptor = self.request_interceptor
-
-    # start with URL like "https://knowt.com/flashcards/5052de2d-1a7d-4da2-8fd7-e3a73a8e1f01"
     driver.get(self.url)
 
     WebDriverWait(driver, 8).until(lambda d: d.execute_script("return document.readyState") == "complete")
@@ -184,14 +182,10 @@ class KnowtImporter():
     html = driver.page_source
     soup = BeautifulSoup(html, "html.parser")
 
-    # Extract cards from soup using a dedicated method. This is more robust
-    # than climbing ancestors from each ProseMirror node and prevents missing
-    # groups by scanning all container divs for >=2 ProseMirror children.
     cards = self.extract_cards_from_soup(soup)
 
     elems = [SimpleNamespace(text=f"{q}|{a}") for q, a in cards]
 
-    # write out results to ~/anki-import.txt
     out = os.path.expanduser("~/anki-import.txt")
     with open(out, "w", encoding="utf-8") as f:
         for item in elems:
