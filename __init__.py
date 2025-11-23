@@ -85,7 +85,6 @@ class KnowtWindow(QWidget):
     def onCode(self):
         url = self.text_url.text()
 
-        # validate knowt URL
         if url == "":
             self.label_results.setText("Deck URL is required")
             return
@@ -111,7 +110,6 @@ class KnowtWindow(QWidget):
                 self.label_results.setText(f"Imported {result.get('found_notes')} notes (no new notes moved)")
         except Exception as e:
             self.label_results.setText(f"Import completed, but moving cards failed: {e}")
-        # close popup
         self.close()
 
 def runKnowtPlugin():

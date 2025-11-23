@@ -2,6 +2,7 @@ import os
 import tempfile
 import unittest
 from types import SimpleNamespace
+from deck_utils import *
 
 
 class MockCol:
@@ -35,11 +36,48 @@ class MockCol:
         self._set_deck_called = True
         self._set_deck_args = (list(card_ids), deck_id)
 
+class TestGetOrCreateDeck(unittest.TestCase):
+    def test_deck_id_int(self):
+        class MockDecks:
+            def id(self, name, create=True):
+                return 123
+
+        class MockCol:
+            decks = MockDecks()
+
+        self.assertEqual(get_or_create_deck(MockCol(), "Some Deck"), 123)
+
+    def test_deck_id_obj_with_id_attr(self):
+        class DeckObj:
+            def __init__(self, id):
+                self.id = id
+
+        class MockDecks:
+            def id(self, name, create=True):
+                return DeckObj(456)
+
+        class MockCol:
+            decks = MockDecks()
+
+        self.assertEqual(get_or_create_deck(MockCol(), "Other"), 456)
+
+    def test_deck_id_intlike(self):
+        class IntLike:
+            def __int__(self):
+                return 789
+
+        class MockDecks:
+            def id(self, name, create=True):
+                return IntLike()
+
+        class MockCol:
+            decks = MockDecks()
+
+        self.assertEqual(get_or_create_deck(MockCol(), "X"), 789)
+
 
 class TestImportCsvAndAssign(unittest.TestCase):
     def test_import_csv_and_assign_moves_cards(self):
-        from deck_utils import import_csv_and_assign
-
         # build a fake response similar to expected protobuf objects
         new_items = [SimpleNamespace(id=SimpleNamespace(nid=101)), SimpleNamespace(id=SimpleNamespace(nid=102))]
         log = SimpleNamespace(found_notes=2, updated=[1], new=new_items)
