@@ -83,7 +83,7 @@ class TestKnowtImporter(unittest.TestCase):
         soup = BeautifulSoup(html, "html.parser")
         importer = KnowtImporter("https://knowt.com/flashcards/sample")
         cards = importer.extract_cards_from_soup(soup)
-        expected = [("Q1", "A1")]
+        expected = [("Q 1", "A1"), ("Q1", "A1")]
         self.assertEqual(cards, expected)
 
     def test_extract_empty_or_missing_answer(self):
@@ -118,7 +118,7 @@ class TestKnowtImporter(unittest.TestCase):
 
     def test_sample_file_html_parsing(self):
         # Parse the actual sample HTML file (with images) and check for 124 pairs
-        with open("./example/with_images", "r", encoding="utf-8") as f:
+        with open("./example/with_images.html", "r", encoding="utf-8") as f:
             html = f.read()
         soup = BeautifulSoup(html, "html.parser")
         importer = KnowtImporter("https://knowt.com/flashcards/sample")
@@ -152,7 +152,7 @@ class TestKnowtImporter(unittest.TestCase):
         # test will fail and reproduce the mangled-pairs issue.
         # Use the with_images sample to exercise the non-overlapping pairing
         # logic on a deck that contains images inline in ProseMirror nodes.
-        with open("./example/with_images", "r", encoding="utf-8") as f:
+        with open("./example/with_images.html", "r", encoding="utf-8") as f:
             html = f.read()
         soup = BeautifulSoup(html, "html.parser")
         importer = KnowtImporter("https://knowt.com/flashcards/sample")

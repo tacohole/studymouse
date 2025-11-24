@@ -1,5 +1,7 @@
 import os
 import sys
+import re
+import json
 
 dir_name = "lib"
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), dir_name))
@@ -9,8 +11,6 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.wait import WebDriverWait
 from bs4 import BeautifulSoup
-import re
-import json
 from types import SimpleNamespace
 
 class KnowtImporter():
@@ -83,22 +83,7 @@ class KnowtImporter():
                 if not q or not a:
                     continue
 
-                # Collapse spaces between single-character tokens (e.g. "Q 1"
-                # -> "Q1") which can occur when inline elements split a
-                # token into multiple text nodes. This preserves normal
-                # multi-word questions but normalizes tiny token splits so
-                # duplicates like ("Q 1","A1") and ("Q1","A1") are
-                # considered the same.
-                def collapse_short_tokens(s):
-                    parts = s.split()
-                    if len(parts) > 1 and all(len(p) == 1 for p in parts):
-                        return ''.join(parts)
-                    return s
-
-                q_display = collapse_short_tokens(q)
-                a_display = collapse_short_tokens(a)
-
-                key = (q_display, a_display)
+                key = (q, a)
                 if key not in seen:
                     seen.add(key)
                     cards.append(key)
