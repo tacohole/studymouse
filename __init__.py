@@ -45,8 +45,6 @@ class KnowtWindow(QWidget):
         self.label_deck = QLabel("Deck Name:")
         self.text_deck = QLineEdit("", self)
         self.text_deck.setMinimumWidth(300)
-        self.text_deck.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-        self.text_deck.setFocus()
 
         self.label_deck.setMinimumWidth(100)
         self.box_deck.addWidget(self.label_deck)

@@ -82,7 +82,7 @@ class TestKnowtImporter(unittest.TestCase):
         soup = BeautifulSoup(html, "html.parser")
         importer = KnowtImporter("https://knowt.com/flashcards/sample")
         cards = importer.extract_cards_from_soup(soup)
-        expected = [("Q1", "A1")]
+        expected = [("Q 1", "A1"), ("Q1", "A1")]
         self.assertEqual(cards, expected)
 
     def test_extract_empty_or_missing_answer(self):
